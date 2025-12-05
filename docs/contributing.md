@@ -51,7 +51,8 @@ nav:
   - Getting Started:
     - Overview: getting-started/overview.md
     - Quick Start: getting-started/quick-start.md
-    
+    - Your New Guide: getting-started/your-guide.md
+
 
 ```
 
