@@ -1,0 +1,194 @@
+# ============================================================================
+# Development Environment Configuration for Keycloak
+# ============================================================================
+#
+# This file contains configuration overrides optimized for local development
+# and testing environments. DO NOT use these settings in production!
+#
+# Usage:
+#   helm install my-keycloak ./keycloak \
+#     -f values-dev.yaml \
+#     --namespace keycloak \
+#     --create-namespace
+#
+# Features:
+#   - Fixed admin credentials (easy login for dev)
+#   - Reduced resource limits (runs on laptop)
+#   - Bundled PostgreSQL (no external DB needed)
+#   - Simplified networking (port-forward instead of ingress)
+#
+# ============================================================================
+
+## ============================================================================
+## Global Security Settings
+## ============================================================================
+#
+# IMPORTANT: This MUST be set to true when using bitnamilegacy images!
+# The Bitnami chart validates images and will reject bitnamilegacy as "insecure"
+# even though they are the correct images to use.
+#
+global:
+  security:
+    # Set to true for bitnamilegacy images (required!)
+    # The chart considers these "unverified" even though they're from Bitnami
+    allowInsecureImages: true
+
+## ============================================================================
+## Keycloak Image Configuration
+## ============================================================================
+#
+# Using bitnamilegacy images for maximum compatibility.
+# These are the ONLY images that work correctly with this Bitnami chart.
+#
+# Why not official Keycloak images?
+#   - Different directory structure (/opt/keycloak vs /opt/bitnami/keycloak)
+#   - Different environment variables
+#   - Incompatible with chart's init containers and volume mounts
+#
+image:
+  registry: docker.io
+  repository: bitnamilegacy/keycloak
+  tag: "26.3.3-debian-12-r0"
+  pullPolicy: IfNotPresent
+  # First pull takes 10-15 min (~800MB image)
+  # Subsequent starts are fast (image cached)
+
+## ============================================================================
+## Authentication Configuration
+## ============================================================================
+#
+# ⚠️ WARNING: These are DEVELOPMENT credentials only!
+# DO NOT use these in any production or staging environment!
+#
+auth:
+  adminUser: admin
+  adminPassword: "admin123"  # Simple password for dev/testing
+  # In production:
+  #   - Use existingSecret instead of hardcoded password
+  #   - Use strong, randomly generated passwords
+  #   - Rotate credentials regularly
+
+## ============================================================================
+## PostgreSQL Database Configuration
+## ============================================================================
+#
+# Bundled PostgreSQL for development - no external database needed!
+# Data persists in a PVC, so it survives pod restarts.
+#
+postgresql:
+  enabled: true  # Use bundled PostgreSQL (disable for external DB)
+  
+  auth:
+    # Database name for Keycloak
+    database: bitnami_keycloak
+    # PostgreSQL username (auto-created by chart)
+    username: bn_keycloak
+    # Password auto-generated and stored in secret
+    # Both Keycloak and PostgreSQL get the same password automatically
+    password: ""  # Leave empty for auto-generation
+  
+  ## PostgreSQL Image
+  # MUST use bitnamilegacy for compatibility with Keycloak chart
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: "17.6.0-debian-12-r0"
+    pullPolicy: IfNotPresent
+  
+  ## Resource limits for development (minimal)
+  # Increase these for production workloads
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi  # Database storage size
+    resources:
+      limits:
+        memory: 256Mi
+        cpu: 250m
+      requests:
+        memory: 128Mi
+        cpu: 100m
+
+## ============================================================================
+## Keycloak Resource Configuration
+## ============================================================================
+#
+# These are reduced limits suitable for local development.
+# Keycloak will use ~512Mi-1Gi of memory during operation.
+#
+resources:
+  limits:
+    memory: 1Gi
+    cpu: 1000m
+  requests:
+    memory: 512Mi
+    cpu: 500m
+  # Production should use higher limits:
+  #   memory: 2-4Gi, cpu: 2000m
+
+## ============================================================================
+## Monitoring and Metrics
+## ============================================================================
+#
+# Disabled by default for dev to reduce resource usage.
+# Enable if testing Prometheus integration.
+#
+metrics:
+  enabled: false
+  # To enable:
+  #   enabled: true
+  #   serviceMonitor:
+  #     enabled: true  # For Prometheus Operator
+
+## ============================================================================
+## Service Configuration
+## ============================================================================
+#
+# Using ClusterIP - access via kubectl port-forward
+# No LoadBalancer needed for local development
+#
+service:
+  type: ClusterIP
+  ports:
+    http: 80
+  # Access via:
+  #   kubectl port-forward -n keycloak svc/my-keycloak 8080:80
+
+## ============================================================================
+## Ingress Configuration
+## ============================================================================
+#
+# Disabled for local development - use port-forward instead.
+# Enable for testing ingress controllers in dev clusters.
+#
+ingress:
+  enabled: false
+  # To enable:
+  #   enabled: true
+  #   hostname: keycloak.local
+  #   ingressClassName: nginx
+  #   tls: false  # Or true with cert-manager
+
+## ============================================================================
+## Additional Development Settings
+## ============================================================================
+
+# Run in development mode (no TLS required)
+production: false
+
+# Single replica for dev (faster startup, less resources)
+replicaCount: 1
+
+# Faster startup for development
+# (production should use longer delays)
+startupProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+livenessProbe:
+  initialDelaySeconds: 120
+  periodSeconds: 10

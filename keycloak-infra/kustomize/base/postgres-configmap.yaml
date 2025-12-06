@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: keycloak
+data:
+  POSTGRES_DB: bitnami_keycloak
+  POSTGRES_USER: bn_keycloak

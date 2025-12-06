@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: dev-
+
+resources:
+  - ../../base
+
+patches:
+  # Update secrets with dev credentials
+  - patch: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: keycloak-secrets
+        namespace: keycloak
+      stringData:
+        admin-password: admin123
+        postgres-password: postgres123
+    target:
+      kind: Secret
+      name: keycloak-secrets
+  
+  # Update database URL to use dev-prefixed service name
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: keycloak
+        namespace: keycloak
+      spec:
+        template:
+          spec:
+            containers:
+            - name: keycloak
+              env:
+              - name: KC_DB_URL
+                value: "jdbc:postgresql://dev-postgresql:5432/bitnami_keycloak?currentSchema=public"
+    target:
+      kind: StatefulSet
+      name: keycloak
+
+commonLabels:
+  environment: development

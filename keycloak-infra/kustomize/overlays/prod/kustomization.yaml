@@ -1,0 +1,57 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: prod-
+
+resources:
+  - ../../base
+
+replicas:
+  - name: keycloak
+    count: 3
+
+patches:
+  # Update secrets with production credentials (CHANGE THESE!)
+  - patch: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: keycloak-secrets
+        namespace: keycloak
+      stringData:
+        admin-password: YOUR_GENERATED_ADMIN_PASSWORD_HERE
+        postgres-password: YOUR_GENERATED_DB_PASSWORD_HERE
+    target:
+      kind: Secret
+      name: keycloak-secrets
+  
+  # Update resources and database URL for production
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: keycloak
+        namespace: keycloak
+      spec:
+        template:
+          spec:
+            containers:
+            - name: keycloak
+              env:
+              - name: KC_DB_URL
+                value: "jdbc:postgresql://prod-postgresql:5432/bitnami_keycloak?currentSchema=public"
+              - name: KC_CACHE
+                value: "ispn"
+              resources:
+                requests:
+                  cpu: 1000m
+                  memory: 1Gi
+                limits:
+                  cpu: 2000m
+                  memory: 2Gi
+    target:
+      kind: StatefulSet
+      name: keycloak
+
+commonLabels:
+  environment: production
